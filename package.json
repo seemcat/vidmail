@@ -1,0 +1,16 @@
+{
+  "name": "vidmail",
+  "license": "UNLICENSED",
+  "version": "0.0.1",
+  "dependencies": {
+    "express": "^4.16.3",
+    "mdbootstrap": "^4.5.9",
+    "nodemailer": "^4.6.8",
+    "nodemailer-mailgun-transport": "^1.4.0",
+    "ziggeo": "^0.1.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seemcat/vidmail"
+  }
+}
