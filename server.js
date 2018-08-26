@@ -5,6 +5,7 @@ app.listen(6906);
 app.use(express.static('public'));
 app.use(bodyParser.json({limit: '500mb'}));
 const url = require('url');
+app.set('trust proxy', true);
 
 // Ziggeo - video API
 Ziggeo = require('ziggeo');
@@ -22,8 +23,31 @@ const auth = {
 };
 const nodemailerMailgun = nodemailer.createTransport(mg(auth));
 
+// Timber - logging API
+const timber = require('timber');
+const transport = new timber.transports.HTTPS(process.env.TIMBER_API_KEY);
+timber.install(transport);
+app.use(timber.middlewares.express({
+  capture_request_body: true
+}));
+
+app.get('/test', (req, res) => {
+  console.log('hello world');
+  res.sendStatus(200);
+});
+
+app.post('/log', (req, res) => {
+  console.warn("Invalid email address input.", {
+    event: {
+      [req.body.type]: { value: req.body.value }
+    }
+  });
+  res.sendStatus(200);
+});
+
 app.post('/mail', (req, res) => {
   const mailTo = req.body.mailTo;
+  console.info("A video has been uploaded!");
 
   nodemailerMailgun.sendMail({
     from: 'hello@vimgirl.com',
@@ -32,20 +56,34 @@ app.post('/mail', (req, res) => {
     text: `To view your VidMail, go to https://hello.vimgirl.com/videos/?email=${mailTo}!`
   }, (err, info) => {
     if (err) {
-      console.log(`Error: ${err}`);
-    }
-    else {
-      console.log(`Response: ${info}`);
+      console.error("VidMail was not sent.", {
+        event: {
+          vm_fail: { err }
+        }
+      });
+    } else {
+      console.info("VidMail sent!", {
+        event: {
+          vm_success: { info }
+        }
+      });
     }
   });
 });
 
 app.get('/videos', (req, res) => {
-  ZiggeoSdk.Videos.index({tags: req.query.email}, (vidInfos) => {
+  if (!req.query.email) console.error("User is not entering a valid VidMail Box link.");
+  else ZiggeoSdk.Videos.index({tags: req.query.email}, (vidInfos) => {
     const videos = vidInfos.reduce((acc, vidInfo) => {
       acc += `<div class="vid-singles"><ziggeoplayer ziggeo-video="${vidInfo.token}" ziggeo-width=320 ziggeo-height=240 ziggeo-theme="modern" ziggeo-themecolor="red"></ziggeo></div>`;
       return acc;
     }, '');
+
+    console.info("User has visited their VidMail Box!", {
+      event: {
+        vmb_visit: { visitor: req.query.email }
+      }
+    });
 
     res.send(`
     <head>
