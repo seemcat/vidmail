@@ -5,6 +5,9 @@ app.listen(6906);
 app.use(express.static('public'));
 app.use(bodyParser.json({limit: '500mb'}));
 const url = require('url');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+app.set('trust proxy', true);
 
 // Ziggeo - video API
 Ziggeo = require('ziggeo');
@@ -22,8 +25,42 @@ const auth = {
 };
 const nodemailerMailgun = nodemailer.createTransport(mg(auth));
 
+// Timber - logging API
+const timber = require('timber');
+timber.config.append_metadata = true;
+const transport = new timber.transports.HTTPS(process.env.TIMBER_API_KEY);
+timber.install(transport);
+app.use(timber.middlewares.express({
+  capture_request_body: true
+}));
+
+app.post('/inputFail', (req, res) => {
+  console.warn("Invalid email address input.", {
+    event: {
+      invalid_input: { user: req.cookies.user }
+    }
+  });
+  res.send('Input was a fail.');
+});
+
+app.post('/login', (req, res) => {
+  res.cookie('user', req.body.user);
+  console.info("New user has logged in.", {
+    event: {
+      new_user: { user: req.body.user }
+    }
+  });
+  res.send('Login was a success.');
+});
+
 app.post('/mail', (req, res) => {
   const mailTo = req.body.mailTo;
+
+  console.info("New video has been uploaded!", {
+    event: {
+      new_video: { user: req.cookies.user }
+    }
+  });
 
   nodemailerMailgun.sendMail({
     from: 'hello@vimgirl.com',
@@ -32,10 +69,18 @@ app.post('/mail', (req, res) => {
     text: `To view your VidMail, go to https://hello.vimgirl.com/videos/?email=${mailTo}!`
   }, (err, info) => {
     if (err) {
-      console.log(`Error: ${err}`);
+      console.warn("Error while sending VidMail.", {
+        event: {
+          vm_err: { user: req.cookies.user, err }
+        }
+      });
     }
     else {
-      console.log(`Response: ${info}`);
+      console.info("VidMail has been sent!", {
+        event: {
+          vm_pass: { user: req.cookies.user }
+        }
+      });
     }
   });
 });
