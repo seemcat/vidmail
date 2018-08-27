@@ -4,6 +4,7 @@ const ziggeoApp = new ZiggeoApi.V2.Application({
 
 let elementToDisplay = document.getElementById('elementToDisplay');
 let tag;
+
 document.getElementById('addTag').onclick = () => {
   tag = document.getElementById("mailTo").value;
   elementToDisplay.innerHTML = `
@@ -30,7 +31,7 @@ document.getElementById('addTag').onclick = () => {
         body: JSON.stringify({
           mailTo: tag
         }),
-      }).catch(err => console.log('Error: ', err));
+      }).catch(err => console.error('Error: ', err));
 
       const nextAction = document.getElementById('nextAction');
       nextAction.innerHTML =`

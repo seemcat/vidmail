@@ -5,6 +5,7 @@ app.listen(6906);
 app.use(express.static('public'));
 app.use(bodyParser.json({limit: '500mb'}));
 const url = require('url');
+app.set('trust proxy', true);
 
 // Ziggeo - video API
 Ziggeo = require('ziggeo');
@@ -22,6 +23,14 @@ const auth = {
 };
 const nodemailerMailgun = nodemailer.createTransport(mg(auth));
 
+// Timber - logging API
+const timber = require('timber');
+const transport = new timber.transports.HTTPS(process.env.TIMBER_API_KEY);
+timber.install(transport);
+app.use(timber.middlewares.express({
+  capture_request_body: true
+}));
+
 app.post('/mail', (req, res) => {
   const mailTo = req.body.mailTo;
 
@@ -32,10 +41,14 @@ app.post('/mail', (req, res) => {
     text: `To view your VidMail, go to https://hello.vimgirl.com/videos/?email=${mailTo}!`
   }, (err, info) => {
     if (err) {
-      console.log(`Error: ${err}`);
+      console.error("VidMail was not sent.", {
+        event: { mail_fail: { err } }
+      });
     }
     else {
-      console.log(`Response: ${info}`);
+      console.info("VidMail sent!", {
+        event: { mail_success: { info } }
+      });
     }
   });
 });
